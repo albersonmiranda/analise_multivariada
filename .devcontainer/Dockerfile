@@ -5,7 +5,7 @@ FROM ghcr.io/rocker-org/devcontainer/r-ver:${VARIANT}
 
 RUN install2.r --error --skipinstalled -n -1 \
         # pacotes R
-        #pacote \
+        mlr3verse \
     && rm -rf /tmp/downloaded_packages
 
 # Pacotes Python (digitar nomes em requirements.txt)

@@ -21,5 +21,10 @@ format:
       - \renewcommand\thesubsection{\alph{subsection}}
 ---
 
+```{r setup, include=FALSE}
+# laod data
+data("tabaco")
+```
+
 # PRIMEIRA QUESTÃO
 
