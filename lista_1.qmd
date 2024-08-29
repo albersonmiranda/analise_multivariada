@@ -1,0 +1,25 @@
+---
+title: Métodos Multivariados de Análise de Dados
+subtitle: 1ª Lista de Exercícios
+author: Alberson da Silva Miranda
+date: last-modified
+date-format: long
+lang: pt-BR
+thanks: Código disponível em https://github.com/albersonmiranda/metodos_multivariados.
+toc: true
+number-sections: true
+sansfont: Times New Roman 
+monofont: Fira Code
+monofontoptions:
+  - Scale=0.8
+highlight-style: zenburn
+code-line-numbers: true
+format:
+  pdf:
+    documentclass: scrreprt
+    header-includes: 
+      - \renewcommand\thesubsection{\alph{subsection}}
+---
+
+# PRIMEIRA QUESTÃO
+
