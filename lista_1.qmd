@@ -28,3 +28,18 @@ data("tabaco")
 
 # PRIMEIRA QUESTÃO
 
+Primeiramente, verificamos a estrutura dos dados.
+
+```{r}
+str(tabaco)
+```
+
+Como as colunas categóricas estão no formato `labelled`, vamos convertê-las para o padrão `factor`.
+
+```{r}
+tabaco <- data.frame(
+  lapply(tabaco, function(x) {
+    if (inherits(x, "labelled")) as.factor(x) else x
+  })
+)
+```
