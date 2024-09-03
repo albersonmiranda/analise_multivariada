@@ -5,7 +5,7 @@ author: Alberson da Silva Miranda
 date: last-modified
 date-format: long
 lang: pt-BR
-thanks: Código disponível em https://github.com/albersonmiranda/metodos_multivariados.
+thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
 toc: true
 number-sections: true
 sansfont: Times New Roman 
@@ -22,7 +22,10 @@ format:
 ---
 
 ```{r setup, include=FALSE}
-# laod data
+# set seed
+set.seed(100)
+
+# load data
 data("tabaco")
 ```
 
@@ -31,15 +34,106 @@ data("tabaco")
 Primeiramente, verificamos a estrutura dos dados.
 
 ```{r}
+# estrutura dos dados
 str(tabaco)
 ```
 
 Como as colunas categóricas estão no formato `labelled`, vamos convertê-las para o padrão `factor`.
 
 ```{r}
+# convertendo para factor
 tabaco <- data.frame(
   lapply(tabaco, function(x) {
     if (inherits(x, "labelled")) as.factor(x) else x
   })
 )
+```
+
+Agora, vamos verificar a estrutura dos dados após a conversão.
+
+```{r}
+# estrutura dos dados
+str(tabaco)
+```
+
+O próximo passo é verificar as estatísticas básicas:
+
+```{r}
+# estatísticas básicas
+summary(tabaco)
+```
+
+Podemos notar que a variável dependente `fuma` é binária, com 0 representando não fumante e 1 fumante. Todas as demais são categóricas, com exceção da idade. `fuma` também está desbalanceada, com 66,3% dos indivíduos fumantes. A variável `fuma_freq` é a única contínua, com média de 1,5 e desvio padrão de 1,2. A variável `fuma_freq` será utilizada como variável resposta para a questão 2.
+
+```{r}
+# proporção de fumantes
+prop.table(table(tabaco$fuma))
+```
+
+A variável `comodos` é assimetrica à esquerda, com uma estranha cauda longa à direita, implicando na presença de alguns bilionários detentores de residências de incríveis 25 cômodos. Será considerada um modelo com *binning* desse fator.
+
+```{r}
+# histograma de comodos
+plot(tabaco$comodos)
+# agrupando maiores que 10 em um único grupo
+tabaco$comodos_bin <- cut(
+  as.numeric(tabaco$comodos),
+  breaks = c(1:9, 25),
+  labels = c(2:9, ">= 10"),
+  include.lowest = TRUE
+)
+```
+
+Agora, vamos verificar a correlação entre as variáveis. Fora da diagonal principal, os únicos índices de correlação extremos são entre `fuma` e `fuma_freq`, o que é esperado, pois a frequência de fumar é um indicador de fumante. `fuma_freq` será reservada como variável resposta para a questão 2.
+
+```{r}
+# correlação entre as variáveis
+cor(sapply(tabaco, as.numeric), method = "spearman")
+```
+
+Agora, a modelagem. Realizamos o *split* treino e teste com 70% e 30%, respectivamente.
+
+```{r}
+# split treino e teste
+train_index <- sample(1:nrow(tabaco), nrow(tabaco) * 0.7)
+tabaco_train <- tabaco[train_index, ]
+tabaco_test <- tabaco[-train_index, ]
+```
+
+Avaliaremos 4 pipelines:
+
+1. Sem balanceamento de classes e sem *binning* de `comodos`.
+2. Com balanceamento de classes e sem *binning* de `comodos`.
+3. Sem balanceamento de classes e com *binning* de `comodos`.
+4. Com balanceamento de classes e com *binning* de `comodos`.
+
+A técnica para balanceamento de classes será *oversampling* e *undersampling* simultaneamente. Aumentaremos em 4/3 a classe minoritária e diminuiremos em 3/4 a classe majoritária.
+
+```{r}
+# realizando oversample
+classe_minoritaria <- tabaco_train[tabaco_train$fuma == 0, ]
+tabaco_ovrsmp <- classe_minoritaria[sample(nrow(classe_minoritaria), nrow(classe_minoritaria) * 4/3, replace = TRUE), ]
+
+nrow(tabaco_ovrsmp)
+
+# realizando undersample
+classe_majoritaria <- tabaco_train[tabaco_train$fuma == 1, ]
+tabaco_undrsmp <- classe_majoritaria[sample(nrow(classe_majoritaria), nrow(classe_majoritaria) * 3/4, replace = FALSE), ]
+
+nrow(tabaco_undrsmp)
+
+# combinando
+tabaco_train_bal <- rbind(tabaco_ovrsmp, tabaco_undrsmp)
+
+# checando balanceamento
+prop.table(table(tabaco_train_bal$fuma))
+```
+
+Enfim, o ajuste dos modelos.
+
+```{r}
+# ajuste dos modelos
+modelo1 <- glm(fuma ~ ., data = subset(tabaco_train, select = -c(fuma_freq, comodos_bin)), family = binomial) 
+# predict
+pred1 <- predict(modelo1, newdata = tabaco_test, type = "response")
 ```
