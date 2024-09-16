@@ -8,7 +8,6 @@ lang: pt-BR
 thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
 toc: true
 number-sections: true
-sansfont: Times New Roman 
 monofont: Fira Code
 monofontoptions:
   - Scale=0.8
@@ -70,21 +69,17 @@ Podemos notar que a variável dependente `fuma` é binária, com 0 representando
 prop.table(table(tabaco$fuma))
 ```
 
-A variável `comodos` é assimetrica à esquerda, com uma estranha cauda longa à direita, implicando na presença de alguns bilionários detentores de residências de incríveis 25 cômodos. Será considerada um modelo com *binning* desse fator.
+A variável `comodos` é assimetrica à esquerda, com uma estranha cauda longa à direita. Trataremos essa variável como numérica.
 
 ```{r}
 # histograma de comodos
 plot(tabaco$comodos)
-# agrupando maiores que 10 em um único grupo
-tabaco$comodos_bin <- cut(
-  as.numeric(tabaco$comodos),
-  breaks = c(1:9, 25),
-  labels = c(2:9, ">= 10"),
-  include.lowest = TRUE
-)
+
+# transformando comodos em numérico
+tabaco$comodos <- as.numeric(tabaco$comodos)
 ```
 
-Agora, vamos verificar a correlação entre as variáveis. Fora da diagonal principal, os únicos índices de correlação extremos são entre `fuma` e `fuma_freq`, o que é esperado, pois a frequência de fumar é um indicador de fumante. `fuma_freq` será reservada como variável resposta para a questão 2.
+Agora, vamos verificar a correlação entre as variáveis. Fora da diagonal principal, os únicos índices de correlação extremos são entre `fuma` e `fuma_freq`, o que é esperado, pois a frequência de fumar é um indicador de fumante. `fuma_freq` será reservada como variável resposta para a questão 2. As correlações entre as variáveis `comodos` e `educacional` são positivas, indicando que quanto maior a renda e educação, maior a probabilidade de fumar, o que é contraintuitivo.
 
 ```{r}
 # correlação entre as variáveis
@@ -100,12 +95,10 @@ tabaco_train <- tabaco[train_index, ]
 tabaco_test <- tabaco[-train_index, ]
 ```
 
-Avaliaremos 4 pipelines:
+Avaliaremos 2 modelos:
 
-1. Sem balanceamento de classes e sem *binning* de `comodos`.
-2. Com balanceamento de classes e sem *binning* de `comodos`.
-3. Sem balanceamento de classes e com *binning* de `comodos`.
-4. Com balanceamento de classes e com *binning* de `comodos`.
+1. Sem balanceamento de classes
+2. Com balanceamento de classes
 
 A técnica para balanceamento de classes será *oversampling* e *undersampling* simultaneamente. Aumentaremos em 4/3 a classe minoritária e diminuiremos em 3/4 a classe majoritária.
 
@@ -129,11 +122,160 @@ tabaco_train_bal <- rbind(tabaco_ovrsmp, tabaco_undrsmp)
 prop.table(table(tabaco_train_bal$fuma))
 ```
 
-Enfim, o ajuste dos modelos.
+Enfim, o ajuste dos modelos. Primeiro o modelo sem balanceamento. A variável `idade` foi transformada em `idade^2` para capturar a possível não linearidade. Por conta do desbalanceamento, o modelo é enviesado para a classe majoritária, com a maior parte das predições sendo fumantes. Em consequência, a acurácia de 65,5%, é superestimada. Deixaremos isso claro ao verificar as demais métricas.
+
+```{r}
+metricas <- function(matriz_confusao) {
+  true_negative <- matriz_confusao[1,1]
+  true_positive <- matriz_confusao[2,2]
+  false_positive <- matriz_confusao[1,2]
+  false_negative <- matriz_confusao[2,1]
+  
+  precisao <- true_positive / (true_positive + false_positive)
+  recall <- false_positive / (false_positive + true_negative)
+  f1 <- 2 * (precisao * recall) / (precisao + recall)
+  acuracia <- (true_positive + true_negative) / (true_positive + true_negative + false_positive + false_negative)
+  false_positive_rate <- false_positive / (false_positive + true_negative)
+  false_negative_rate <- false_negative / (false_negative + true_positive)
+
+  print(paste("Precisão: ", round(precisao, 2)))
+  print(paste("Acurácia: ", round(acuracia, 2)))
+  print(paste("Recall: ",round(recall,2)))
+  print(paste("Taxa de falso positivo: ", round(false_positive_rate, 2)))
+  print(paste("Taxa de falso negativo: ", round(false_negative_rate, 2)))
+  print(paste("f1: ",round(f1, 2)))
+}
+```
 
 ```{r}
 # ajuste dos modelos
-modelo1 <- glm(fuma ~ ., data = subset(tabaco_train, select = -c(fuma_freq, comodos_bin)), family = binomial) 
+modelo <- glm(
+  fuma ~ bebe_freq + comodos + sexo + idade + idade^2 + educacional,
+  data = tabaco_train,
+  family = binomial
+) 
+
+# sumário
+summary(modelo)
+
 # predict
-pred1 <- predict(modelo1, newdata = tabaco_test, type = "response")
+pred <- predict(
+  modelo,
+  newdata = subset(
+    tabaco_test,
+    select = c(
+      "bebe_freq",
+      "comodos",
+      "sexo",
+      "idade",
+      "educacional"
+    )
+  ),
+  type = "response"
+)
+
+# adicionando threshold
+pred <- ifelse(pred > 0.5, 1, 0)
+
+# matriz de confusão
+confusao <- table(tabaco_test$fuma, pred)
+
+# métricas
+metricas(confusao)
+```
+
+Utilizando classes balanceadas, verificamos que a acurácia é menor, mas, sem o viés para a classe majoritária, o modelo ganha em precisão e reduz a taxa de falso positivo de 95% para 49%, sendo um modelo muito mais confiável.
+
+```{r}
+# ajuste dos modelos
+modelo <- glm(
+  fuma ~ bebe_freq + comodos + sexo + idade + idade^2 + educacional,
+  data = tabaco_train_bal,
+  family = binomial
+) 
+# predict
+pred <- predict(
+  modelo,
+  newdata = subset(
+    tabaco_test,
+    select = c(
+      "bebe_freq",
+      "comodos",
+      "sexo",
+      "idade",
+      "educacional"
+    )
+  ),
+  type = "response"
+)
+
+# adicionando threshold
+pred <- ifelse(pred > 0.5, 1, 0)
+
+# matriz de confusão
+confusao <- table(tabaco_test$fuma, pred)
+
+# métricas
+metricas(confusao)
+```
+
+Interpretação direta, considerando apenas as direções, beber frequentemente reduz a probabilidade de fumar (-0.38 logodds), assim como ser do sexo masculino. Quanto maior a idade, menores as chances de ser fumante e quanto maior o nível educacional, maior as chances de ser fumante.
+
+# SEGUNDA QUESTÃO
+
+Nesta questão, usaremos a variável multiclasse `fuma_freq`, adotando como *baseline* 0 = não fumo atualmente. Como as três classes já estão balanceadas, não precisaremos balancear as classes.
+
+```{r}
+# ajuste dos modelos
+modelo <- nnet::multinom(
+  fuma_freq ~ bebe_freq + comodos + sexo + idade + idade^2 + educacional,
+  data = tabaco_train
+)
+
+# sumário
+summary(modelo)
+
+# predict
+pred <- predict(
+  modelo,
+  newdata = subset(
+    tabaco_test,
+    select = c(
+      "bebe_freq",
+      "comodos",
+      "sexo",
+      "idade",
+      "educacional"
+    )
+  ),
+  type = "class"
+)
+
+# matriz de confusão
+confusao <- table(tabaco_test$fuma_freq, pred)
+
+# acurácia
+acuracia <- sum(diag(confusao) / sum(confusao))
+
+# precisão
+precisao <- diag(confusao) / colSums(confusao)
+
+# recall
+recall <- diag(confusao) / rowSums(confusao)
+
+# métricas
+confusao
+acuracia
+precisao
+recall
+```
+
+Na interpretação direta, beber aumenta a probabilidade de fumar ocasionalmente, enquanto reduz a probabilidade de fumar diariamente. A *proxy* de renda, a quantidade de cômodos, influencia positivamente a probabilidade de fumar diariamente (para o nível 1 não foi significativo). Demais variáveis seguem a mesma direção e sentido do modelo biclasse.
+
+```{r}
+# test z bicaudal
+z <- summary(modelo)$coefficients / summary(modelo)$standard.errors
+
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+p
 ```
