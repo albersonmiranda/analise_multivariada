@@ -52,12 +52,23 @@ dados <- readxl::read_excel(
 print(dados)
 
 # passando dados para o {deaR}
-dados_dea <- deaR::make_deadata(dados, ni = 2, no = 2, dmus = 1, inputs = 2:3, outputs = 4:5)
+dados_dea <- deaR::make_deadata(
+  dados,
+  ni = 2,
+  no = 2,
+  dmus = 1,
+  inputs = 2:3,
+  outputs = 4:5
+)
 ```
 
 ## Modelando a DEA
 
-No modelo orientado a insumo, considerando retornos constantes de escola, F e H são os DMUs completamente eficientes.
+No modelo orientado a insumo, os insumos dos DMUs eficientes irão permanecer os mesmos, uma vez que já são eficientes. Para os demais, os valores dos insumos são alterados para que eles se tornem eficientes.
+
+Os DMUs eficientes são aqueles que possuem eficiência igual a 1 na saída da função `efficiencies()`. O valores ótimos dos insumos e produtos são obtidos com a função `targets()`.
+
+Considerando retornos constantes de escola, F e H são os DMUs completamente eficientes.
 
 ```{r}
 # modelo orientado a insumo, crs
@@ -71,7 +82,6 @@ crs_insumo <- deaR::model_basic(
 
 deaR::efficiencies(crs_insumo)
 deaR::targets(crs_insumo)
-plot(crs_insumo)
 ```
 
 Já com retornos variáveis, temos C, F, G e H como DMUs completamente eficientes.
@@ -88,5 +98,38 @@ vrs_insumo <- deaR::model_basic(
 
 deaR::efficiencies(vrs_insumo)
 deaR::targets(vrs_insumo)
-plot(vrs_insumo)
+```
+
+No modelo orientado a produto, são os valores dos produtos dos DMUs ineficientes que são alterados para que eles se tornem eficientes.
+
+No modelo orientado a produto, considerando retornos constantes de escola, temos F e H como DMUs completamente eficientes.
+
+```{r}
+# modelo orientado a produto, crs
+crs_produto <- deaR::model_basic(
+  dados_dea,
+  # "io" significa "input oriented"
+  orientation = "oo",
+  # rts significa "return to scale". "crs" significa "constant return to scale"
+  rts = "crs"
+)
+
+deaR::efficiencies(crs_produto)
+deaR::targets(crs_produto)
+```
+
+Já com retornos variáveis, temos C, F, G e H como DMUs completamente eficientes.
+
+```{r}
+# modelo orientado a produto, crs
+vrs_produto <- deaR::model_basic(
+  dados_dea,
+  # "io" significa "input oriented"
+  orientation = "io",
+  # rts significa "return to scale". "vrs" significa "variable return to scale"
+  rts = "vrs"
+)
+
+deaR::efficiencies(vrs_produto)
+deaR::targets(vrs_produto)
 ```
