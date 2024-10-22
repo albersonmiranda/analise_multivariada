@@ -240,3 +240,29 @@ autoplot(pred, task, type = "sil")
 ```
 
 Poucas observações estão negativas, sugerindo que o método obteve separação aceitável.
+
+# Exercício 2
+
+O dendograma sugere dois _clusters_: um com as empresas 7 e 9, e outro com as demais, uma vez que o _split_ em 3 _clusters_ não traz ganho de informação. E isso fica evidente observando os dados, já que as empresas 7 e 9 são iguais.
+
+As observações 10, 5 e 8 também são iguais, mas para que formasem un _cluster_, seria necessário um _split_ em 6 _clusters_, o que é demais num _dataset_ de 10 observações.
+
+```{r}
+# Carregando os dados
+dados <- read.table("data-raw/clustering/empresas.txt", header = TRUE)
+
+# corrigindo nomes
+dados <- janitor::clean_names(dados)
+
+# distância de Jaccard
+dados_jaccard <- subset(dados, select = -empresa) |> 
+  proxy::dist(method = "Jaccard")
+
+# clusterização hierárquica
+hc <- hclust(dados_jaccard, method = "single")
+
+# plotando dendograma
+plot(hc)
+```
+
+O primeiro grupo não realiza planejamento sucessório, então recomendaria fazê-lo. Já no segundo grupo, 75% realiza planejamento sucessório, evidenciando boa prática.
