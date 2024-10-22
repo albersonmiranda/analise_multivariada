@@ -1,0 +1,11 @@
+Empresa	Diretoria_Fam	Controle_Acion	Cargos_Oper	Plan_Sucess	Segunda_Ger	Conselho_Fam
+Empresa1	1	1	0	1	1	1
+Empresa2	1	1	1	0	1	0
+Empresa3	0	0	1	0	0	0
+Empresa4	1	1	0	1	1	1
+Empresa5	1	1	1	1	1	1
+Empresa6	0	0	0	1	0	0
+Empresa7	0	0	0	0	0	0
+Empresa8	1	1	1	1	1	1
+Empresa9	0	0	0	0	0	0
+Empresa10	1	1	1	1	1	1

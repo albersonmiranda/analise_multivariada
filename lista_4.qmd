@@ -1,0 +1,242 @@
+---
+title: Métodos Multivariados de Análise de Dados
+subtitle: 4ª Atividade
+author: Alberson da Silva Miranda
+date: last-modified
+date-format: long
+lang: pt-BR
+thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
+toc: true
+number-sections: true
+sansfont: Times New Roman # Liberation Serif
+mainfont: Times New Roman # Liberation Serif
+monofont: Fira Code
+monofontoptions:
+  - Scale=0.8
+highlight-style: zenburn
+code-line-numbers: true
+format:
+  pdf:
+    documentclass: scrreprt
+    header-includes: 
+      - \renewcommand\thesubsection{\alph{subsection}}
+---
+
+```{r setup, include=FALSE}
+# set seed
+set.seed(100)
+
+# carregando pacotes
+library(ggplot2)
+```
+
+# Exercício 1
+
+## Análise gráfica 3D dos dados e uma análise de estatística descritiva
+
+```{r}
+# Carregando os dados
+dados <- readxl::read_excel("data-raw/clustering/cluster.xlsx")
+
+# plot 3D
+scatterplot3d::scatterplot3d(dados[, 2:4], pch = 19, type = "h", main = "Gráfico 3D dos dados")
+
+# estatísticas descritivas
+summary(dados)
+
+# boxplot
+dados_long <- dados |>
+  tidyr::pivot_longer(-Empresa)
+
+dados_long |>
+  ggplot(aes(x = name, y = value)) +
+  geom_boxplot() +
+  facet_wrap(~name, scales = "free") +
+  theme_minimal()
+
+# histograma com linha da normal teórica
+dados_long |>
+  ggplot(aes(x = value)) +
+  geom_histogram(aes(y = after_stat(density))) +
+  facet_wrap(~name, scales = "free") +
+  geom_line(
+    aes(
+      y = dnorm(
+        value,
+        mean = tapply(value, name, mean, na.rm = TRUE)[PANEL],
+        sd = tapply(value, name, sd, na.rm = TRUE)[PANEL]
+      )
+    ),
+    color = "red"
+  )
+```
+
+## Análise de cluster
+
+Com _single linkage_, o dendograma não parece muito promissor, com o primeiro _split_ já não trazendo muito ganho de informação:
+
+```{r}
+# Carregando os pacotes
+library(mlr3verse)
+library(mlr3cluster)
+
+# normalizando os dados
+dados_scale <- as.data.frame(scale(dados[, 2:4]))
+
+# Criando tarefa
+task <- TaskClust$new(id = "cluster", backend = dados_scale)
+
+# criando learner
+learner <- lrn(
+  "clust.hclust",
+  distmethod = "euclidean",
+  method = "single"
+)
+
+# treinando o modelo
+model <- learner$train(task)
+
+# plotando dendograma
+autoplot(model)
+
+# plotando altura x número de clusters
+autoplot(model, type = "scree")
+```
+
+Já com o método _complete_, o dendograma é mais coerente, sugerindo 3 clusters:
+
+```{r}
+# criando learner
+learner <- lrn(
+  "clust.hclust",
+  distmethod = "euclidean",
+  method = "complete"
+)
+
+# treinando o modelo
+model <- learner$train(task)
+
+# plotando dendograma
+autoplot(model)
+
+# plotando altura x número de clusters
+autoplot(model, type = "scree")
+```
+
+No método _average_, o dendograma também sugere 3 clusters:
+
+```{r}
+# criando learner
+learner <- lrn(
+  "clust.hclust",
+  distmethod = "euclidean",
+  method = "average"
+)
+
+# treinando o modelo
+model <- learner$train(task)
+
+# plotando dendograma
+autoplot(model)
+
+# plotando altura x número de clusters
+autoplot(model, type = "scree")
+```
+
+## Anova
+
+```{r}
+# criando learner
+learner <- lrn(
+  "clust.hclust",
+  distmethod = "euclidean",
+  method = "complete",
+  k = 3
+)
+
+# treinando o modelo
+model <- learner$train(task)
+
+# predição
+pred <- model$predict(task)
+
+# visualizando os clusters
+autoplot(pred, task)
+autoplot(pred, task, type = "pca")
+
+# bind com dados
+dados_pred <- cbind(dados, as.data.table(pred))
+
+# ANOVA para variável LC
+aov(LC ~ partition, data = dados_pred) |> summary()
+
+# ANOVA para variável END
+aov(END ~ partition, data = dados_pred) |> summary()
+
+# ANOVA para variável RSPL
+aov(RSPL ~ partition, data = dados_pred) |> summary()
+```
+
+Para a variável LC e END, a ANOVA sugere que não há diferenças significativas entre os clusters. Já para a variável RSPL, há diferenças significativas entre os clusters.
+
+## Método de K-means
+
+Utilizando agrupamento não hierarquico, podemos testar o método de K-means:
+
+```{r}
+# criando learner
+learner <- lrn(
+  "clust.kmeans",
+  centers = 3
+)
+
+# treinando o modelo
+model <- learner$train(task)
+
+# predição
+pred <- model$predict(task)
+
+# visualizando os clusters
+autoplot(pred, task)
+
+# bind com dados
+dados_pred <- cbind(dados, as.data.table(pred))
+
+# ANOVA para variável LC
+aov(LC ~ partition, data = dados_pred) |> summary()
+
+# ANOVA para variável END
+aov(END ~ partition, data = dados_pred) |> summary()
+
+# ANOVA para variável RSPL
+aov(RSPL ~ partition, data = dados_pred) |> summary()
+
+# visualizando os clusters
+autoplot(pred, task, type = "pca")
+```
+
+Usando método K-Means, a relação de significância da ANOVA se inverteu: para LC e END, há diferenças significativas entre os clusters, enquanto para RSPL, não há diferenças significativas.
+
+```{r}
+# definição de k ótimo via elbow
+kmeans_elbow <- function(data, k_max = 10) {
+  wss <- numeric(k_max)
+  for (k in 1:k_max) {
+    model <- kmeans(data, centers = k)
+    wss[k] <- model$tot.withinss
+  }
+  return(wss)
+}
+
+# plotando elbow
+dados_scale |> kmeans_elbow() |> plot(type = "b")
+```
+
+Por esse método, até 4 clusters poderiam ser considerados.
+
+```{r}
+# silhouette plot
+autoplot(pred, task, type = "sil")
+```
+
+Poucas observações estão negativas, sugerindo que o método obteve separação aceitável.
