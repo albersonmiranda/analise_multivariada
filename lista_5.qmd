@@ -1,0 +1,279 @@
+---
+title: Métodos Multivariados de Análise de Dados
+subtitle: 5ª Atividade
+author: Alberson da Silva Miranda
+date: last-modified
+date-format: long
+lang: pt-BR
+thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
+toc: true
+number-sections: true
+sansfont: Times New Roman # Liberation Serif
+mainfont: Times New Roman # Liberation Serif
+monofont: Fira Code
+monofontoptions:
+  - Scale=0.8
+highlight-style: zenburn
+code-line-numbers: true
+format:
+  pdf:
+    documentclass: scrreprt
+    header-includes: 
+      - \renewcommand\thesubsection{\alph{subsection}}
+---
+
+```{r setup, include=FALSE}
+# set seed
+set.seed(100)
+
+# knitr options
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  out.width = "70%"
+)
+```
+
+# CASE 1
+
+```{r dados}
+# importação do dataset
+dados <- haven::read_dta("data-raw/pca/factor_whistleblowing.dta") |>
+  subset(select = -id)
+```
+
+Com os dados carregados, primeiro verificamos a estrutura de correlação. Cada grupo de variáveis possui alta correlação entre si (LC, PSM e PI). Já entre elas, LC demonstra correlação negativa com PSM e PSM positiva com PI, mas nenhuma delas acima de 30%.
+
+```{r corplot}
+#| label: fig-corplot
+#| fig-cap: "Matriz de correlação."
+
+# matriz de correlação
+corrplot::corrplot(
+  cor(dados),
+  type = "upper",
+  order = "hclust",
+  tl.col = "black",
+  tl.srt = 45
+)
+```
+
+O segundo passo é verificar a adequação dos dados para a análise fatorial. Para isso, utilizamos o teste de esfericidade de Bartlett e o teste de Kaiser-Meyer-Olkin. O teste de Bartlett testa a hipótese nula de que a matriz de correlação é uma matriz identidade, ou seja, que não há covariância significativa entre as variáveis, enquanto o teste de KMO indica se os dados são adequados para a análise fatorial.
+
+```{r kmo}
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(dados), n = nrow(dados))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(dados)
+```
+
+Com p-valor de 0, podemos rejeitar a hipótese nula de que a matriz de correlação é uma matriz identidade. O teste de KMO, por sua vez, indica que os dados são adequados para a análise fatorial, com valor de 0,65, apesar de não muito promissores, segundo a escala dos autores do teste.
+
+A seguir, vamos repetir o teste para cada grupo de variáveis. Para o primeiro grupo, LC, temos adequação para a análise fatorial. O Alpha de Cronbach de 0.69 indica uma consistência interna no limite do aceitável.
+
+```{r pca lc}
+# testes fator LC
+lc <- dados[, 1:3]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(lc), n = nrow(lc))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(lc)
+
+# alpha de Cronbach
+psych::alpha(lc)
+
+# Análise fatorial
+fa_lc <- psych::principal(lc, nfactors = 1, rotate = "none")
+fa_lc
+```
+
+Para os demais grupos a interpretação segue bem semlhante ao primeiro. Para PI, temos:
+
+```{r pca pi}
+# testes fator PI
+dados_pi <- dados[, 4:7]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(dados_pi), n = nrow(dados_pi))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(dados_pi)
+
+# Alpha de Cronbach
+psych::alpha(dados_pi)
+
+# Análise fatorial
+fa_pi <- psych::principal(dados_pi, nfactors = 1, rotate = "none")
+fa_pi
+```
+
+E, por fim, para o terceiro grupo, PSM, temos:
+
+```{r pca psm}
+# testes fator PSM
+dados_psm <- dados[, 8:12]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(dados_psm), n = nrow(dados_psm))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(dados_psm)
+
+# Alpha de Cronbach
+psych::alpha(dados_psm)
+
+# Análise fatorial
+fa_psm <- psych::principal(dados_psm, nfactors = 1, rotate = "none")
+fa_psm
+```
+
+A partir daqui, ajustaríamos um modelo para a análise fatorial confirmatória (CFA) e testaríamos hipóteses (possivelmente utilizando o pacote {lavaan} e a função `lavaan::cfa()`). No entanto, não localizei instruções ou código nos exemplos fornecidos.
+
+# CASE 2
+
+```{r dados2}
+# importação do dataset
+dados <- haven::read_dta("data-raw/pca/FamilyWorkConflict.dta") |>
+  subset(select = -ID)
+```
+
+Primeiramente, vamos reverter as respostas que estão invertidas.
+
+```{r revert}
+# reverter as respostas das colunas que terminam com "R"
+dados <- dados |>
+  dplyr::mutate(across(ends_with("R"), ~ 6 - .))
+```
+
+Com os dados corrigidos, vamos verificar a estrutura de correlação. O padrão que aparece no gráfico sugere _clusters_ de variáveis correlacionadas, o que pode se rum indicativo para adequação da aálise fatorial.
+
+```{r corplot2}
+#| label: fig-corplot2
+#| fig-cap: "Matriz de correlação."
+
+# matriz de correlação
+corrplot::corrplot(
+  cor(dados),
+  type = "upper",
+  order = "hclust",
+  tl.col = "black",
+  tl.srt = 45
+)
+```
+
+Em seguida, vamos verificar a adequação dos dados para a análise fatorial. O teste de Bartlett e o teste de KMO indicam que os dados são adequados para a análise fatorial.
+
+```{r kmo2}
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(dados), n = nrow(dados))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(dados)
+```
+
+Com p-valor de 0, podemos rejeitar a hipótese nula de que a matriz de correlação é uma matriz identidade. O teste de KMO, por sua vez, indica que os dados são adequados para a análise fatorial, com valor de 0,79, segundo a escala dos autores do teste.
+
+A seguir, vamos repetir o teste para cada grupo de variáveis. Para o primeiro grupo, demandas família, temos adequação para a análise fatorial. O Alpha de Cronbach de 0.7 indica uma consistência interna aceitável.
+
+```{r pca dem_fam}
+# testes fator demandas família
+dem_fam <- dados[, 1:4]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(dem_fam), n = nrow(dem_fam))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(dem_fam)
+
+# Alpha de Cronbach
+psych::alpha(dem_fam)
+
+# Análise fatorial
+fa_dem_fam <- psych::principal(dem_fam, nfactors = 1, rotate = "none")
+fa_dem_fam
+```
+
+Para os demais grupos a interpretação segue bem semlhante ao primeiro. Para demandas trabalho, temos:
+
+```{r pca dem_trab}
+# testes fator demandas trabalho
+dem_trab <- dados[, 5:8]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(dem_trab), n = nrow(dem_trab))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(dem_trab)
+
+# Alpha de Cronbach
+psych::alpha(dem_trab)
+
+# Análise fatorial
+fa_dem_trab <- psych::principal(dem_trab, nfactors = 1, rotate = "none")
+fa_dem_trab
+```
+
+Para identificação com família, temos:
+
+```{r pca id_fam}
+# testes fator identificação com família
+id_fam <- dados[, 9:13]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(id_fam), n = nrow(id_fam))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(id_fam)
+
+# Alpha de Cronbach
+psych::alpha(id_fam)
+
+# Análise fatorial
+fa_id_fam <- psych::principal(id_fam, nfactors = 1, rotate = "none")
+fa_id_fam
+```
+
+Para identificação com trabalho, temos:
+
+```{r pca id_trab}
+# testes fator identificação com trabalho
+id_trab <- dados[, 14:18]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(id_trab), n = nrow(id_trab))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(id_trab)
+
+# Alpha de Cronbach
+psych::alpha(id_trab)
+
+# Análise fatorial
+fa_id_trab <- psych::principal(id_trab, nfactors = 1, rotate = "none")
+fa_id_trab
+```
+
+Para estresse, temos:
+
+```{r pca estresse}
+# testes fator estresse
+estresse <- dados[, 19:24]
+
+# Teste de esfericidade de Bartlett
+psych::cortest.bartlett(cor(estresse), n = nrow(estresse))
+
+# Teste de Kaiser-Meyer-Olkin
+psych::KMO(estresse)
+
+# Alpha de Cronbach
+psych::alpha(estresse)
+
+# Análise fatorial
+fa_estresse <- psych::principal(estresse, nfactors = 1, rotate = "none")
+fa_estresse
+```
+
+A partir daqui, ajustaríamos um modelo para a análise fatorial confirmatória (CFA) e testaríamos hipóteses (possivelmente utilizando o pacote {lavaan} e a função `lavaan::cfa()`). No entanto, não localizei instruções ou código nos exemplos fornecidos.
