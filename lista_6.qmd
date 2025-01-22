@@ -1,0 +1,220 @@
+---
+title: Métodos Multivariados de Análise de Dados
+subtitle: 6ª Atividade
+author: Alberson da Silva Miranda
+date: last-modified
+date-format: long
+lang: pt-BR
+thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
+toc: true
+number-sections: true
+sansfont: Times New Roman # Liberation Serif
+mainfont: Times New Roman # Liberation Serif
+monofont: Fira Code
+monofontoptions:
+  - Scale=0.8
+highlight-style: zenburn
+code-line-numbers: true
+format:
+  pdf:
+    documentclass: scrreprt
+    header-includes: 
+      - \renewcommand\thesubsection{\alph{subsection}}
+---
+
+```{r setup, include=FALSE}
+# set seed
+set.seed(100)
+
+# knitr options
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  out.width = "70%"
+)
+```
+
+# CORREÇÃO
+
+- Interpretação do teste $\chi^2$ está invertida. É esperado que o teste seja não significativo para que o modelo seja aceito.
+- Deveria ter revertido as variáveis inversas, pois afeta alguns testes. 
+
+# INSTRUCTIONS
+
+Complete the methods, results and conclusions session of the paper One Should Not Be Flexible - One Should Be Strong: a Study on Work-Family Boundary Strength”. A simplified version of the proposed model must be tested:
+
+![Model](data-raw/sem/graph.png)
+
+First run a CFA for each “layer” of constructs (Work identity and Work demands together, then Boundary strength at Family and Stress independently).
+
+Comment on any eventual changes made in the measurement models (i.e. exclusion of indicators). It is not allowed to correlate errors under any circumstance!
+
+Run the structural model to test the hypotheses.
+
+Report all relevant indicators and tests.
+
+# SCALES
+
+## CONSTRUCT: WORK DEMANDS
+
+Source: Boyar, S. L., Carr, J. C., Mosley Jr., D. C., & Carson, C. M. (2007). The Development and Validation of Scores on Perceived Work and Family Demand Scales. Educational & Psychological Measurement, 67(1), 100-115.
+
+Dem_Trab1 - I feel like I have a lot of work demand.
+Dem_Trab2 - My job requires all of my attention.
+Dem_Trab3 - My work requires a lot from me.
+Dem_Trab4 - I am given a lot of work to do.
+
+
+## CONSTRUCT: BOUNDARY STRENGTH AT FAMILY (BSF)
+
+Source: Hecht, T. D., & Allen, N. J. (2009). A longitudinal examination of the work–nonwork boundary strength construct. Journal of Organizational Behavior, 30(7), 839-862. Retrieved from EBSCOhost.
+
+Força_Fam_1_R - I often do work at home. (R)
+Força_Fam_2 - I never do work when I am with my family.
+Força_Fam_3 - I never take my work out of the ‘‘office.’’
+Força_Fam_4_R - I often work ‘‘after hours.’’ (R)
+Força_Fam_5_R - I often deal with work-related issues when I am with my family (R)
+Força_Fam_6 – I don't use family time for work-related matters.
+
+## CONSTRUCT: WORK IDENTITY
+
+Source: Kanungo, R. N. (1982). Measurement of Job and Work Involvement. Journal of Applied Psychology, 67(3), 341-349.
+
+Id_Trab_1 - The most important things that happen to me involve my present job
+Id_Trab_2_R - To me, my job is only a small part of who I am
+Id_Trab_3 - Most of my interests are centered around my job
+Id_Trab_4 - I like to be absorbed in my job most of the time
+Id_Trab_5 - Most of my personal life goals are job-oriented
+
+## CONSTRUCT: OCCUPATIONAL STRESS
+
+Source: PASCHOAL, Tatiane; TAMAYO, Álvaro. Validação da escala de estresse no trabalho. Estud. psicol. (Natal), Natal, v. 9, n. 1, abr. 2004
+
+Estresse_1 - Costumo ficar nervoso com a forma como as tarefas são distribuídas no meu setor de trabalho
+Estresse_2 - A competição no meu ambiente de trabalho tem me deixado de mau humor
+Estresse_3 - Fico irritado com discriminação/favoritismo/politicagem no meu ambiente de trabalho
+Estresse_4 - Fico de mau humor por ter que trabalhar durante muitas horas seguidas
+Estresse_5 - A falta de compreensão sobre quais são minhas responsabilidades no meu trabalho tem me causado irritação
+Estresse_6 - Fico nervoso por ter um tempo insuficiente para realizar meu volume de trabalho
+
+# MÉTODOS
+
+O primeiro passo é a importação dos dados.
+
+```{r dados}
+# importação do dataset
+dados <- haven::read_sav("data-raw/sem/Work_Family_Conflict_case_ok.sav")
+
+# inverter variáveis reversas
+dados$Forca_Fam_1_R <- 6 - dados$Forca_Fam_1_R
+dados$Forca_Fam_4_R <- 6 - dados$Forca_Fam_4_R
+dados$Forca_Fam_5_R <- 6 - dados$Forca_Fam_5_R
+dados$Id_Trab_2_R <- 6 - dados$Id_Trab_2_R
+```
+
+Agora, a análise fatorial confirmatória. Para o construto Work Demands, o diagnóstico do modelo é positivo, com o construto se mostrando significativo estatisticamente (p < 0.05) e com um bom ajuste (CFI > 0.95, RMSEA < 0.08).
+
+Em relação às cargas fatorias, apenas `Id_Trab_2_R` foi excluída do modelo, pois não apresentou carga fatorial significativa (> 0.5).
+
+```{r cfa_work}
+# carregar pacotes
+library(lavaan)
+library(semPlot)
+
+# CFA para Work Demands e Work Identity
+modelo_work <- '
+  Work_Demands =~ Dem_Trab_1 + Dem_Trab_2 + Dem_Trab_3 + Dem_Trab_4
+  Work_Identity =~ Id_Trab_1 + Id_Trab_2_R + Id_Trab_3 + Id_Trab_4 + Id_Trab_5
+'
+
+cfa_work <- cfa(modelo_work, data = dados)
+summary(cfa_work, fit.measures = TRUE, standardized = TRUE)
+semPaths(cfa_work, what = "std", title = TRUE)
+```
+
+Para o construto Boundary Strength at Family, o teste de significância foi positivo, com p-valor 0, mas CFI de apenas 92% e RMSEA de 0.15, o que não são bons indicadores. A carga fatorial `Forca_Fam_3` é baixa e foi excluída do modelo.
+
+```{r cfa_bsf_stress}
+# CFA para Boundary Strength at Family
+modelo_bsf <- '
+  BSF =~ Forca_Fam_1_R + Forca_Fam_2 + Forca_Fam_3 + Forca_Fam_4_R + Forca_Fam_5_R + Forca_Fam_6
+'
+
+cfa_bsf <- cfa(modelo_bsf, data = dados)
+summary(cfa_bsf, fit.measures = TRUE, standardized = TRUE)
+semPaths(cfa_bsf, what = "std", title = TRUE)
+```
+
+Analisando os _modification indices_, temos algumas covariâncias que contribuiriam para o modelo e foram adicionadas. A inclusão dessas covariâncias foi capaz de melhorar o ajuste, com CFI de 0.99 e RMSEA de 0.07.
+
+```{r mod_indices_bsf}
+modindices(cfa_bsf)
+```
+
+```{r cfa_bsf_stress_mod}
+# CFA para Boundary Strength at Family
+modelo_bsf <- '
+  BSF =~ Forca_Fam_1_R + Forca_Fam_2 + Forca_Fam_4_R + Forca_Fam_5_R + Forca_Fam_6
+  Forca_Fam_1_R ~~ Forca_Fam_2
+  Forca_Fam_1_R ~~ Forca_Fam_5_R
+  Forca_Fam_2 ~~ Forca_Fam_6
+'
+
+cfa_bsf <- cfa(modelo_bsf, data = dados)
+summary(cfa_bsf, fit.measures = TRUE, standardized = TRUE)
+semPaths(cfa_bsf, what = "std", title = TRUE)
+```
+
+Para o construto Occupational Stress, o teste de significância foi negativo, com p-valor de 36%, apesar de um CFI de 0.99 e RMSEA de 0.16.
+
+```{r cfa_stress}
+# CFA para Occupational Stress
+modelo_stress <- '
+  Stress =~ Estresse_1 + Estresse_2 + Estresse_3 + Estresse_4 + Estresse_5 + Estresse_6
+'
+
+cfa_stress <- cfa(modelo_stress, data = dados)
+summary(cfa_stress, fit.measures = TRUE, standardized = TRUE)
+semPaths(cfa_stress, what = "std", title = TRUE)
+```
+
+Testando as covariâncias, nenhuma é grande o suficiente para ser incluída no modelo. Além disso, mesmo removendo os indicadores de cargas fatoriais baixas, `Estresse_3` e `Estresse_4`, o teste de significância ainda não se mostrou significativo. Entretanto, tendo as demais métricas positivas, seguiremos com o construto.
+
+```{r mod_indices_stress}
+modindices(cfa_stress)
+```
+
+```{r cfa_stress_mod}
+# CFA para Occupational Stress
+modelo_stress <- '
+  Stress =~ Estresse_1 + Estresse_2 + Estresse_5 + Estresse_6
+'
+
+cfa_stress <- cfa(modelo_stress, data = dados)
+summary(cfa_stress, fit.measures = TRUE, standardized = TRUE)
+semPaths(cfa_stress, what = "std", title = TRUE)
+```
+
+Por fim, o modelo estrutural. As hipóteses são confirmadas, com BSF influenciando Work Identity e Work Demands, e Stress influenciado por BSF e Work Demands. As cargas fatoriais são altas e os coeficientes de regressão são significativos.
+
+```{r sem}
+# Modelo estrutural
+modelo_structural <- '
+  Work_Demands =~ Dem_Trab_1 + Dem_Trab_2 + Dem_Trab_3 + Dem_Trab_4
+  Work_Identity =~ Id_Trab_1 + Id_Trab_3 + Id_Trab_4 + Id_Trab_5
+  BSF =~ Forca_Fam_1_R + Forca_Fam_2 + Forca_Fam_4_R + Forca_Fam_5_R + Forca_Fam_6
+  Stress =~ Estresse_1 + Estresse_2 + Estresse_5 + Estresse_6
+
+  Forca_Fam_1_R ~~ Forca_Fam_2
+  Forca_Fam_1_R ~~ Forca_Fam_5_R
+  Forca_Fam_2 ~~ Forca_Fam_6
+
+  # Hipóteses
+  BSF ~ Work_Identity + Work_Demands
+  Stress ~ BSF + Work_Demands
+'
+
+sem_model <- sem(modelo_structural, data = dados)
+summary(sem_model, fit.measures = TRUE, standardized = TRUE)
+semPaths(sem_model, what = "std", title = TRUE)
+```
