@@ -1,0 +1,55 @@
+---
+title: Métodos Multivariados de Análise de Dados
+subtitle: Draft
+author: Alberson da Silva Miranda
+date: last-modified
+date-format: long
+lang: pt-BR
+thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
+toc: true
+number-sections: true
+sansfont: Times New Roman # Liberation Serif
+mainfont: Times New Roman # Liberation Serif
+monofont: Fira Code
+monofontoptions:
+  - Scale=0.8
+highlight-style: zenburn
+code-line-numbers: true
+bibliography: bib.bib
+format:
+  pdf:
+    documentclass: scrreprt
+    header-includes: 
+      - \renewcommand\thesubsection{\alph{subsection}}
+      - \newcommand{\legenda}[1]{\begin{center}\footnotesize{#1}\end{center}}
+---
+
+# INTRODUÇÃO
+
+# REFERENCIAL TEÓRICO
+
+A primeira abordagem quantitativa, baseada em modelagem estatística, para evidenciar o poder de explicação da escolaridade sobre a renda do trabalhador foi realizada no trabalho seminal de @mincer_schooling_1974. O autor propôs um modelo de capital humano, onde a escolaridade é um dos principais determinantes da renda -- especificamente, do logarítmo da renda. A especificação que ficou conhecida como _equação de Mincer_ é a seguinte:
+
+$$
+\ln Y = \beta_0 + \beta_1 S + \beta_2 E + \beta_3 S^2 + \beta_4 E^2 + \varepsilon
+$$ {#eq-mincer}
+
+\noindent em que $Y$ é a renda, $S$ é a escolaridade (medida em anos), $E$ é o tempo de experiência (estimada como a idade subtraída dos anos de escolaridade e da constante 6, considerada a idade para início da formação) e $\varepsilon$ é o erro aleatório. O modelo de Mincer foi amplamente utilizado e adaptado em diversos estudos subsequentes, tornando-se uma referência na literatura sobre capital humano.
+
+A partir de dados do censo norte-americano, ele estimou diversas especificações de modelos estatísticos, concluindo que aqueles que utilizaram a escolaridade e tempo de experiência como variáveis dependentes foram capazes de explicar até 33% da variação da renda do trabalhador^[Medidos pelo coeficiente de determinação $R^2$.], com o coeficiente de retorno médio de escolaridade ($\beta_1$ na @eq-mincer) de até 0.16, o que significa um incremento médio de 17,4% na renda por ano de escolaridade^[Como o modelo utiliza o log da renda, para se computar o efeito em moeda deve-se realizar a operação inversa, resultando em $e^{0.16} = 1.1735$.].
+
+Desde então, diversos estudos têm sido realizados para estimar os efeitos da escolaridade sobre a renda do trabalhador, cada um estendendo ou aplicando o modelo de Mincer em diferentes contextos. @psacharopoulos_returns_2004 estimam, em média, cerca de 10% de incremento de renda para cada ano de estudo. @colclough_changing_2010 mostram, a partir de dados de 34 países, que até a década de 1990 os retornos a cada nível de escolaridade eram descrescentes, mas que, a partir de então, o retorno a cada ano extra de estudo aumenta a cada incremento no nível de escolaridade. Neste mesmo trabalho, os autores demonstram que os retornos em todos os níveis de escolaridade (primário, secundário e terciário) estão reduzindo ao longo das décadas, mas que a redução é mais acentuada no nível primário.
+
+@ferreira_labor_2022 analisam a desigualdade salarial no Brasil no período entre 1995-2012 e mostram que os dois principais fatores que aumentam a desigualdade são 1) a maior disparidade de salários entre diferentes setores da economia, e; 2) o chamado "paradoxo do progresso", o efeito intensificador da desigualdade quando há aumento da educação da população em uma sociedade em que os retornos à educação são convexos, ou seja, aumentam exponencialmente a cada aumento do nível educacional (@fig-paradoxo1). Esse fenômeno é paradoxal no sentido de que se espera que a educação reduza a desigualdade, mas, em sociedades em que os retornos associados aos níveis superiores de educação são muito altos em relação aos menores, a escolaridade tem efeito contrário, de intensificação das desigualdades.
+
+::: {#fig-paradoxo1}
+
+![](img\ferreira_et_al.png){width=70%}
+
+`\legenda{Fonte: Ferreira et al. (2022).}`{=latex}
+
+Paradoxo do progresso no Brasil.
+
+:::
+
+Nesse sentido, @altonji_heterogeneity_2012 aponta que a escolha do curso superior é de grande impacto na determinação da renda, destacando que a diferença no retorno médio entre alguns cursos superiores, como engenharia elétrica e pedagogia, é quase tão grande quanto a diferença média entre indivíduos com ensino médio e ensino superior. @van_ophem_educational_2024 reforçam essa ideia, mostrando que a escolha do curso superior é um dos principais elementos não apenas na renda inicial quanto também na progressão salarial ao longo da carreira.
