@@ -1,0 +1,76 @@
+---
+title: Métodos Multivariados de Análise de Dados
+subtitle: 7ª Atividade
+author: Alberson da Silva Miranda
+date: last-modified
+date-format: long
+lang: pt-BR
+thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
+toc: true
+number-sections: true
+sansfont: Times New Roman # Liberation Serif
+mainfont: Times New Roman # Liberation Serif
+monofont: Fira Code
+monofontoptions:
+  - Scale=0.8
+highlight-style: zenburn
+code-line-numbers: true
+format:
+  pdf:
+    documentclass: scrreprt
+    header-includes: 
+      - \renewcommand\thesubsection{\alph{subsection}}
+---
+
+```{r dados}
+# importar dados
+load("data-raw/lme/dados.RData")
+
+# pacotes
+library(lme4)
+library(lmerTest)
+
+# visualizar dados
+head(empresas_setores)
+```
+
+# Exercício: Regressões Multiníveis (HLM)
+
+Você foi contratado como analista para investigar os fatores que influenciam o desempenho das empresas em diferentes setores da economia. Para isso, dispõe de um conjunto de dados que inclui variáveis no nível das empresas (nível 1) e no nível dos setores (nível 2).
+
+Descrição das variáveis:
+
+1. Nível 1 (Empresa):
+  - Desempenho (variável dependente): Desempenho financeiro das empresas, medido como o lucro líquido em milhões de reais.
+  - Tamanho (variável independente): Tamanho da empresa, medido pelo número de funcionários.
+  - Idade (variável independente): Idade da empresa em anos.
+2. Nível 2 (Setor):
+  - Concorrência (variável independente): Grau de concorrência no setor, medido em uma escala de 1 a 10.
+  - Inovação (variável independente): Percentual médio de empresas inovadoras no setor.
+
+O objetivo é desenvolver os seguintes modelos multiníveis (formalizar):
+1. Modelo nulo
+2. Modelo com efeito aleatório no intercepto
+3. Modelo com efeito aleatório no intercepto e no slope
+4. Modelo com moderação no nível 2
+
+Para o modelo nulo, temos que o desempenho médio é de 10.6, com desvio padrão intersetor de 3.
+
+```{r modelo nulo}
+m_nulo <- lmer(Desempenho ~ 1 + (1 | Setor), data = empresas_setores)
+summary(m_nulo)
+```
+
+Adicionando o efeito aleatório no intercepto, temos 
+
+```{r efeito aleatório no intercepto}
+m_random_1 <- lmer(desempenho ~ 1 + tamanho + idade + concorrencia + inovacao + (tamanho + idade |setor), data = empresas_setores)
+summary(m_random_1)
+```
+
+Adicionando interação entre as variáveis, temos que:
+
+```{r interações}
+m_random_2 <- lmer(desempenho ~ tamanho + idade + concorrencia + inovacao + tamanho:inovacao + tamanho:concorrencia + idade:inovacao + idade:concorrencia + (tamanho + idade |setor), data = empresas_setores)
+summary(m_random_2)
+```
