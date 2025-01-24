@@ -7,7 +7,9 @@ date-format: long
 lang: pt-BR
 thanks: Código disponível em https://github.com/albersonmiranda/analise_multivariada.
 toc: true
+toc-title: SUMÁRIO
 number-sections: true
+fig-cap-location: top
 sansfont: Times New Roman # Liberation Serif
 mainfont: Times New Roman # Liberation Serif
 monofont: Fira Code
@@ -15,16 +17,57 @@ monofontoptions:
   - Scale=0.8
 highlight-style: zenburn
 code-line-numbers: true
-bibliography: bib.bib
+bibliography: [bib.bib, packages.bib]
 format:
   pdf:
     documentclass: scrreprt
+    cite-method: biblatex
+    biblatexoptions: 
+      - backend=biber
+      - style=abnt
+      - giveninits
+      - backref=true
+      - backrefstyle=three
     header-includes: 
       - \renewcommand\thesubsection{\alph{subsection}}
       - \newcommand{\legenda}[1]{\begin{center}\footnotesize{#1}\end{center}}
 ---
 
+```{r config}
+#| include = FALSE
+
+# opções
+knitr::opts_chunk$set(
+  out.width = "70%",
+  echo = FALSE
+)
+
+# reprodutibilidade
+set.seed(1)
+
+# pacotes
+pacman::p_load(
+  kableExtra,
+  ggplot2
+)
+
+# dados
+rais = readRDS("data/rais.rds") |>
+  subset(ano == 2022)
+
+# tema ggplot
+tema = theme_classic() +
+  theme(
+    text = element_text(family = "serif")
+  )
+
+# gerar bibliografia de pacotes
+knitr::write_bib(file = "packages.bib")
+```
+
 # INTRODUÇÃO
+
+Há diversos trabalhos analisando os determinantes na renda do trabalhador formal, sendo um dos temos mais recorrentes a relação entre a escolaridade e a renda. Neste projeto, busco modificar a abordagem tradicional, que se baseia na elaboração de modelos de regressão log-linear, para uma abordagem probabilística, utilizando logit multinomial para estimar a probabilidade de um trabalhador receber salário mínimo ou menos, até o salário mínimo DIEESE e acima, sob a ótica da escolaridade, raça/cor e sexo.
 
 # REFERENCIAL TEÓRICO
 
@@ -53,3 +96,117 @@ Paradoxo do progresso no Brasil.
 :::
 
 Nesse sentido, @altonji_heterogeneity_2012 aponta que a escolha do curso superior é de grande impacto na determinação da renda, destacando que a diferença no retorno médio entre alguns cursos superiores, como engenharia elétrica e pedagogia, é quase tão grande quanto a diferença média entre indivíduos com ensino médio e ensino superior. @van_ophem_educational_2024 reforçam essa ideia, mostrando que a escolha do curso superior é um dos principais elementos não apenas na renda inicial quanto também na progressão salarial ao longo da carreira.
+
+# METODOLOGIA
+
+Dois dos caminhos viáveis são via dados da Relação Anual de Informações Sociais (Rais) e a Pesquisa Nacional por Amostra de Domicílios Contínua (PNad Contínua). Ambas bases de dados são disponibilizadas publicamente por órgãos governamentais e estão também tratadas e disponíveis gratuitamente por fontes secundárias, como o *data lake* Base dos Dados [@cavalcante_basedosdados_2022]. O acesso, manipulação dos dados e a análise podem ser realizados com o *software* R [@R-base].
+
+As variáveis de interesse são:
+
+1. renda média nominal naquele ano
+2. ciclo de escolaridade
+3. idade
+4. raça/cor
+5. sexo
+6. quantidade de moradores no domicílio, no caso da PNad Contínua, que possibilita o cálculo da renda domiciliar per capita e um novo nível da variável resposta (abaixo do nível da pobreza, que corresponde a R$ 665 per capita).
+
+Após selecionadas, deve-se aplicar condições às variáveis para obter amostra completa, ou seja, sem valores faltantes, e coerente. Essas condições estão resumidas na tabela a seguir. Elas implicam na restrição às entradas com renda média positiva não nula; na exclusão de entradas sem quaisquer dos campos escolaridade, raça/cor ou sexo preenchidos. 
+
+```{r possiveis valores rais}
+#| tbl-cap: Possíveis valores para as variáveis selecionadas da Rais
+
+kbl(
+  data.frame(
+    Variável = c(
+      "Sigla UF",
+      "Renda Média Nominal",
+      "Ciclo de Escolaridade",
+      "Idade",
+      "Raça/Cor",
+      "Sexo"
+    ),
+    Valores = c(
+      "ES",
+      "Núméricos, não negativos",
+      "Analfabeto, Ensino Fundamental (I/II, completo/incompleto),  Ensino Médio (completo/incompleto), Ensino Superior (completo/incompleto), Mestrado ou Doutorado",
+      "Sem restrições",
+      "Branco, Preto, Pardo, Indígena ou Amarelo",
+      "Masculino ou Feminino"
+    )
+  ),
+  booktabs = TRUE,
+  escape = FALSE
+) |>
+  kable_styling(latex_options = "striped", font_size = 10) |>
+  column_spec(2, width = "30em") |>
+  footnote(
+    general = "\\\\hfill Fonte: Elaborado pelo Autor (2025) \\\\hfill",
+    general_title = "",
+    escape = FALSE
+  )
+```
+
+Além das condições de interesse do pesquisador, é necessário atentar que a Rais trata do mercado de trabalho formal, o que exclui trabalhadores informais e profissionais autônomos.
+
+Seguindo @mincer_schooling_1974, mas adaptando à nossa Lei de Diretrizes e Bases da Educação Nacional (LDB), pode-se obter uma aproximação para o tempo de experiência de cada indivíduo a partir da seguinte fórmula:
+
+$$
+\text{exp} = \text{idade} - \text{anos de formação} - 6
+$$ {#eq-exp}
+
+Em que supõe-se:
+
+- Idade de 6 anos para ingresso no ensino fundamental
+- 5 anos para o fundamental I
+- 4 anos para o fundamental II
+- 3 anos para o ensino médio
+- 4 anos para o superior
+- 2 anos para o mestrado
+- 4 anos par ao doutorado
+
+Assim, por exemplo, para um indivíduo de 30 anos com mestrado, temos $30-18-6=6$ anos de experiência.
+
+Por fim, a variável resposta. O salário mínimo em 2022 foi de R$ 1.212,00. O salário mínimo DIEESE, que é o salário mínimo necessário para uma família de quatro pessoas, foi de R$ 6.647,63, em dezembro. Assim, a variável resposta será dividida em três categorias:
+
+1. Salário mínimo ou menos
+2. Acima do salário mínimo, mas abaixo do salário mínimo DIEESE
+3. Salário mínimo DIEESE ou mais
+
+A modelagem será realizada por meio de um modelo logit multinomial, que estima a probabilidade de um trabalhador pertencer a uma das categorias da variável resposta, dada a escolaridade, raça/cor e sexo.
+
+# RESULTADOS PRELIMINARES
+
+Resultados preliminares foram obtidos com os dados da Rais para o ano de 2022, com foco nos trabalhadores do estado do Espírito Santo.
+
+```{r resultados rais}
+# variável respota
+rais$resp = cut(
+  rais$vlr_rem,
+  breaks = c(0, 1212, 6647.63, Inf),
+  labels = c(
+    "minimo",
+    "abaixo_DIEESE",
+    "acima_DIEESE"
+  )
+) |>
+  as.factor()
+
+# modelo
+modelo <- nnet::multinom(
+  resp ~ grau + raca_cor + sexo + regiao + exp + I(exp^2),
+  data = rais
+)
+
+sumario <- summary(modelo)
+
+# test z bicaudal
+z <- sumario$coefficients / sumario$standard.errors
+
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+p
+```
+
+# REFERÊNCIAS
+
+::: {#refs}
+:::
