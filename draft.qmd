@@ -166,7 +166,7 @@ Em que supõe-se:
 
 Assim, por exemplo, para um indivíduo de 30 anos com mestrado, temos $30-18-6=6$ anos de experiência.
 
-Por fim, a variável resposta. O salário mínimo em 2022 foi de R$ 1.212,00. O salário mínimo DIEESE, que é o salário mínimo necessário para uma família de quatro pessoas, foi de R$ 6.647,63, em dezembro. Assim, a variável resposta será dividida em três categorias:
+Por fim, a variável resposta (`resp`). O salário mínimo em 2022 foi de R$ 1.212,00. O salário mínimo DIEESE, que é o salário mínimo necessário para uma família de quatro pessoas, foi de R$ 6.647,63, em dezembro. Assim, a variável resposta será dividida em três categorias:
 
 1. Salário mínimo ou menos
 2. Acima do salário mínimo, mas abaixo do salário mínimo DIEESE
@@ -176,9 +176,22 @@ A modelagem será realizada por meio de um modelo logit multinomial, que estima 
 
 # RESULTADOS PRELIMINARES
 
-Resultados preliminares foram obtidos com os dados da Rais para o ano de 2022, com foco nos trabalhadores do estado do Espírito Santo.
+Resultados preliminares foram obtidos com os dados da Rais para o ano de 2022, com foco nos trabalhadores do estado do Espírito Santo. A @tbl-resultados mostra os resultados do modelo logit ordinal estimado com os coeficientes já exponenciados para possibilitar a interpretação direta das razões de chance.
 
-```{r resultados rais}
+As variáveis de linha de base são:
+
+- **resp**: salário mínimo ou menor
+- **grau**: sem nenhum grau de escolaridade
+- **raca_cor**: preta
+- **sexo**: feminino
+- **regiao**: interior
+
+Tomando como exemplo `graudoutorado`, a interpretação do coeficiente é que com razão de chance de 51.03, um indivíduo com doutorado tem 51x mais chances de receber acima do salário mínimo (abaixo ou acima do DIEESE) do que um indivíduo sem escolaridade. Os demais seguem interpretação análoga. Vemos com isso que ter ensino superior elevada em muito as chances de receber maiores remunerações, com a pós-graduação intensificando ainda mais esse efeito.
+
+Além da educação, características do indivíduo escancaram desigualdades. Ser homem triplicam as chances de receber acima do salário mínimo, enquanto ser banco aumentam as chances em 30%. A localidade também exerce influência, com a grande Vitória aumentando as chances em quase 60%.
+
+```{r modelo}
+
 # variável respota
 rais$resp = cut(
   rais$vlr_rem,
@@ -189,22 +202,52 @@ rais$resp = cut(
     "acima_DIEESE"
   )
 ) |>
-  as.factor()
+  factor(levels = c("minimo", "abaixo_DIEESE", "acima_DIEESE")) |>
+  ordered()
 
 # modelo
-modelo <- nnet::multinom(
+library(MASS)
+modelo <- polr(
   resp ~ grau + raca_cor + sexo + regiao + exp + I(exp^2),
-  data = rais
+  data = rais, Hess = TRUE
 )
-
-sumario <- summary(modelo)
-
-# test z bicaudal
-z <- sumario$coefficients / sumario$standard.errors
-
-p <- (1 - pnorm(abs(z), 0, 1)) * 2
-p
 ```
+
+```{r resultados}
+#| output: asis
+#| label: tbl-resultados
+#| tbl-cap: Modelo logit ordinal
+
+# sumário
+stargazer::stargazer(
+  modelo,
+  type = "latex",
+  header = FALSE,
+  digits = 2,
+  single.row = TRUE,
+  apply.coef = exp,
+  float = FALSE,
+  notes = "Fonte: Elaborado pelo Autor (2024).",
+  notes.align = "c",
+  notes.label = ""
+)
+```
+
+Em relação ao ponto de corte do salário mínimo do DIEESE, a @tbl-sumario mostra o sumário sem a exponenciação, incluindo os limites de cada nível. Para alcançar um logit de 8.16 e ser classificado como acima do salário mínimo DIEESE, em média, um indivíduo na linha de base deve ter ensino superior e 40 anos de experiência (3.23 + 40x0.12 = 8.03), o que quer dizer que tal remuneração só seria alcança ao final da carreira. Já homens brancos, localizados na grande Vitória, alcançam essa remuneração com 25 anos de experiência (3.23 + 0.25 + 1.09 + 0.45 + 25x0.12 = 6.73).
+
+```{r sumario}
+#| label: tbl-sumario
+#| tbl-cap: Sumário do modelo
+kbl(coef(summary(modelo)), digits = 2) |>
+  kable_styling(latex_options = "striped", font_size = 10) |>
+  footnote(
+    general = "\\\\hfill Fonte: Elaborado pelo Autor (2025) \\\\hfill",
+    general_title = "",
+    escape = FALSE
+  )
+```
+
+Adicionando uma camada de curso superior, o trabalho controlaria para a heterogeneidade de remuneração de cada indústria, como evidenciado na revisão de literatura e seria capaz de mostrar como esse tempo de experiência se encurta ou alonga em função da profissão escolhida.
 
 # REFERÊNCIAS
 
